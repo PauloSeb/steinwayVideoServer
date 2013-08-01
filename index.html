@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+    <script src="./js/Color/SpaceW3.js" type="text/javascript"></script>
+     <script src="./js/MIDI/AudioDetect.js" type="text/javascript"></script>
+     <script src="./js/MIDI/LoadPlugin.js" type="text/javascript"></script>
+     <script src="./js/MIDI/Plugin.js" type="text/javascript"></script>
+     <script src="./js/MIDI/Player.js" type="text/javascript"></script>
+     <script src="./js/MusicTheory/Synesthesia.js" type="text/javascript"></script>
+     <script src="./js/Widgets/Loader.js" type="text/javascript"></script>
+     <script src="./js/Window/Event.js" type="text/javascript"></script>
+     <script src="./js/Window/DOMLoader.XMLHttp.js" type="text/javascript"></script>
+     <script src="./js/Window/DOMLoader.script.js" type="text/javascript"></script>
+     <!-- jasmid package -->
+     <script src="./inc/jasmid/stream.js"></script>
+     <script src="./inc/jasmid/midifile.js"></script>
+     <script src="./inc/jasmid/replayer.js"></script>
+     <!-- extras -->
+     <script src="./inc/Base64.js" type="text/javascript"></script>
+     <script src="./inc/base64binary.js" type="text/javascript"></script>
+    
+  </head>
+  <body>
+    <p>Please open console tab.</p>
+    <object id="Jazz1" classid="CLSID:1ACE1618-1C7D-4561-AEE1-34842AA85E90" class="hidden">
+      <object id="Jazz2" type="audio/x-jazz" class="hidden">
+        <p style="visibility:visible;">This page requires <a href=http://jazz-soft.net>Jazz-Plugin</a> ...</p>
+      </object>
+    </object>
+    <button id="nextButton">Next</button>
+  </body>
+  <script type="text/javascript">
+      var scoreId = '82782';
+      var scoreSecret = '7cf5724682';
+      
+      // Load Jazz plugin
+      var Jazz = document.getElementById("Jazz1"); if(!Jazz || !Jazz.isJazz) Jazz = document.getElementById("Jazz2");
+      // Select Right output
+      try{
+        var list=Jazz.MidiOutList();
+        console.log("MIDI OUT list: " + list);
+        Jazz.MidiOutOpen(list[0]);
+        console.log("Selected MIDI OUT: " + list[0]);
+      }
+      catch(err){ console.log('error:'+err);}
+
+      // Load MIDI.JS plugin
+      MIDI.loadPlugin({ callback: playNext });
+
+      function playNext() {
+        MIDI.Player.stop();
+        var askNextSong = setInterval(function(){
+          $.getJSON('http://steinwayradio.herokuapp.com/playlist/pop', function(data) {
+            if(data != undefined) {
+              window.clearInterval(askNextSong);
+              MIDI.Player.loadFile('http://static.musescore.com/' + data.id + '/'+ data.secret +'/score.mid', onFileLoaded);
+            }
+          });
+        },3000);
+      }
+
+      // Add listener to MIDI event then start playing song
+      function onFileLoaded() {
+        MIDI.Player.addListener(function(data) {
+          if(Jazz.isJazz && data.message != undefined) {
+            (data.message==128) ? data.message=0x80 : data.message=0x90;
+            if (data.velocity == undefined) data.velocity =0;
+            Jazz.MidiOut(data.message,data.note,data.velocity);  
+          }
+        });
+        MIDI.Player.start();
+      }
+
+      MIDI.Player.setAnimation(function(data, element) {
+        var now = data.now >> 0;
+        var end = data.end >> 0;
+        if (now === end) { playNext(); }
+      });
+
+      document.getElementById("nextButton").addEventListener("click", playNext, false);
+
+    </script>
+</html>
