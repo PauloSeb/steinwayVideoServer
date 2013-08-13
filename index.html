@@ -28,17 +28,28 @@
         <p style="visibility:visible;">This page requires <a href=http://jazz-soft.net>Jazz-Plugin</a> ...</p>
       </object>
     </object>
-    <button id="nextButton">Next</button>
+	<label id="currentTrack"></label>
+	<select id="channelSelect"></select>
+	<label id="playPercentage"></label>
+	<button id="autoPlayButton">Activate autoplay</button>
+	<button id="stopButton">Stop</button>
+	<button id="playButton">Play</button>
+    <button id="nextButton">Next track</button>
   </body>
   <script type="text/javascript">
-      var scoreId = '82782';
-      var scoreSecret = '7cf5724682';
-      
+	  var autoplay = false;
+	  // Default score
+      var scoreId = '39069';
+      var scoreSecret = '123f429e59';
+	  
       // Load Jazz plugin
       var Jazz = document.getElementById("Jazz1"); if(!Jazz || !Jazz.isJazz) Jazz = document.getElementById("Jazz2");
       // Select Right output
       try{
         var list=Jazz.MidiOutList();
+		//update UI
+		for(var i=0;i<list.length;i++)
+			$('#channelSelect').append('<option value="'+i+'" selected="selected">'+list[i]+'</option>');
         console.log("MIDI OUT list: " + list);
         Jazz.MidiOutOpen(list[0]);
         console.log("Selected MIDI OUT: " + list[0]);
@@ -55,9 +66,10 @@
             if(data != undefined) {
               window.clearInterval(askNextSong);
               MIDI.Player.loadFile('http://static.musescore.com/' + data.id + '/'+ data.secret +'/score.mid', onFileLoaded);
+			  $('#currentTrack').html(data.title);
             }
           });
-        },3000);
+        },1000);
       }
 
       // Add listener to MIDI event then start playing song
@@ -69,16 +81,53 @@
             Jazz.MidiOut(data.message,data.note,data.velocity);  
           }
         });
-        MIDI.Player.start();
+		if(autoplay)
+			MIDI.Player.start();
       }
 
       MIDI.Player.setAnimation(function(data, element) {
-        var now = data.now >> 0;
+		var now = data.now >> 0;
         var end = data.end >> 0;
+		var percentage = Math.round(now/end*100);
         if (now === end) { playNext(); }
+		$('#playPercentage').html(percentage+'%');
+		
       });
 
-      document.getElementById("nextButton").addEventListener("click", playNext, false);
+	  // Interface
+	  $('#autoPlayButton').click(toggleAutoPlay);
+	  $('#stopButton').click(stop);
+	  $('#playButton').click(togglePlay);
+	  $('#nextButton').click(playNext);
+	  $('#channelSelect').change(onChannelChange);
+	  
+	  function toggleAutoPlay() {
+		autoplay = !autoplay;
+		autoplay ? $('#autoPlayButton').html('Desactivate autoplay') : $('#autoPlayButton').html('Activate autoplay');
+		if(autoplay && !MIDI.Player.playing) MIDI.Player.start();
+	  }
+	  
+	  function togglePlay() {
+		if(MIDI.Player.playing) {
+		  MIDI.Player.pause();
+		  $('#playButton').html('Play');
+		} else {
+		  (MIDI.Player.currentTime != undefined) ? MIDI.Player.resume() : MIDI.Player.start();
+		  $('#playButton').html('Pause');
+		}
+	  }
 
+	  function stop() {
+		MIDI.Player.stop();
+	  }
+	  
+	  function onChannelChange() {
+		try{
+        Jazz.MidiOutOpen($('#channelSelect option:selected').text());
+        console.log("Selected MIDI OUT: " + $('#channelSelect option:selected').text());
+      }
+      catch(err){ console.log('error:'+err);}
+	  }
+	  
     </script>
 </html>
