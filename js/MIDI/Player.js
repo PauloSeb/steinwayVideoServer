@@ -235,6 +235,14 @@ var startAudio = function (currentTime, fromCache) {
 					interval: scheduleTracking(channel, note, queuedTime, offset, 128)
 				});
 				break;
+			case 'controller':
+				if (MIDI.channels[channel].mute || event.controllerType!=64) break;
+				note = event.noteNumber - (root.MIDIOffset || 0);
+				eventQueue.push({
+					event: event,
+					source: MIDI.noteOn(channel, 'pedal', event.value, currentTime / 1000 + ctx.currentTime),
+					interval: scheduleTracking(channel, note, queuedTime, offset, 176, event.value)
+				});
 			default:
 				break;
 		}
